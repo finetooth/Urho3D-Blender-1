@@ -42,7 +42,7 @@ if "decompose" in locals():
     imp.reload(utils)
     if DEBUG and "testing" in locals(): imp.reload(testing)
 
-from .decompose import TOptions, Scan
+from .decompose import TOptions, Scan, TPrintNodes, ScanNodes
 from .export_urho import UrhoExportData, UrhoExportOptions, UrhoWriteModel, UrhoWriteAnimation, \
                          UrhoWriteTriggers, UrhoExport
 from .export_scene import SOptions, UrhoScene, UrhoExportScene, UrhoWriteMaterial, UrhoWriteMaterialsList
@@ -1318,7 +1318,11 @@ def ExecuteUrhoExport(context):
 
     # Decompose
     if DEBUG: ttt = time.time() #!TIME
+    tNodes = ScanNodes(context, tDataList, settings.errorsMem, tOptions);
+    #TPrintNodes(tNodes, "");
+    #return;
     Scan(context, tDataList, settings.errorsMem, tOptions)
+    
     if DEBUG: print("[TIME] Decompose in {:.4f} sec".format(time.time() - ttt) ) #!TIME
 
     # Export each decomposed object
@@ -1343,7 +1347,7 @@ def ExecuteUrhoExport(context):
         if DEBUG: print("[TIME] Export in {:.4f} sec".format(time.time() - ttt) ) #!TIME
         if DEBUG: ttt = time.time() #!TIME
 
-        uScene.Load(uExportData, tData.blenderObjectName)
+        uScene.Load(uExportData, tData.blenderObjectName, tNodes)
 
         for uModel in uExportData.models:
             if uModel.geometries:
@@ -1432,7 +1436,7 @@ def ExecuteUrhoExport(context):
     
     # Export scene and nodes
     if settings.prefabs:
-        UrhoExportScene(context, uScene, sOptions, fOptions)
+        UrhoExportScene(context, uScene, sOptions, fOptions, tOptions)
 
     return True
 

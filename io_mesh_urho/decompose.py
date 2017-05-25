@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 #
 # This script is licensed as public domain.
 # Based on "Export Inter-Quake Model (.iqm/.iqe)" by Lee Salzman
@@ -2079,6 +2079,75 @@ def DecomposeMesh(scene, meshObj, tData, tOptions, errorsMem):
 
     return
 
+#-------------------
+# Scan node
+#-------------------
+class TreeNode:
+    def __init__(self, n, m, pn, tp):
+        self.name = n;
+        self. matrix = m;
+        self.parent = pn;
+        self.type = tp;
+        self.child = [];
+        return;
+    def __str__(self):
+        return "[" + self.type + "]" + self.name;
+
+def ScanNodes(context, tDataList, errorsMem, tOptions):
+    scene = context.scene
+    
+    # Get all objects in the scene or only the selected in visible layers
+    if tOptions.onlySelected: 
+        objs = context.selected_objects 
+    else:
+        objs = scene.objects
+    
+    # Gather objects
+    nodeDict = {};
+    nodes = []
+
+    # list all obj
+    for obj in objs:
+        if obj.hide:
+            continue
+        uname = obj.name;
+        parentObject = obj.parent;
+        upname = "";
+
+        
+        if (parentObject):
+            upname = parentObject.name;
+        uobj = TreeNode(obj.name, obj.matrix_local, upname, obj.type);
+        if (not parentObject):
+            nodes.append(uobj);
+        nodeDict[uname] = uobj;
+        #print("[" +uname + "] p:[" + upname +"]" + str(uobj));
+        
+    for obj in objs:
+        if obj.hide:
+            continue
+        
+        parentObject = obj.parent;
+        if (parentObject):
+            # add child
+            uname = obj.name;
+            upname = parentObject.name;
+            uNode = nodeDict[uname];
+            pNode = nodeDict[upname];
+            pNode.child.append(uNode);
+            
+    return nodes;
+            
+def TPrintNodes(nodes, parentName):
+    if (not parentName):
+        parentName = "";
+    else:
+        parentName = parentName + " ";
+    for obj in nodes:
+        print(parentName + obj.name);
+        TPrintNodes(obj.child, parentName + obj.name);
+    return;
+    
 #--------------------
 # Scan objects
 #--------------------

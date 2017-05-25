@@ -7,11 +7,17 @@ from .utils import PathType, GetFilepath, CheckFilepath, \
                    FloatToString, Vector3ToString, Vector4ToString, \
                    WriteXmlFile
 
+import math
 from xml.etree import ElementTree as ET
-from mathutils import Vector
+from mathutils import Vector, Matrix, Quaternion
+from math import radians
+
 import bpy
 import os
 import logging
+
+
+
 
 log = logging.getLogger("ExportLogger")
 
@@ -63,6 +69,8 @@ class UrhoSceneModel:
         self.materialsList = []
         # Model bounding box
         self.boundingBox = None
+        # Matrix
+        self.matrix = None;
 
     def Load(self, uExportData, uModel, objectName):
         self.name = uModel.name
@@ -72,6 +80,10 @@ class UrhoSceneModel:
             parentObject = bpy.data.objects[objectName].parent
             if parentObject and parentObject.type == 'MESH':
                 self.parentObjectName = parentObject.name
+
+            nowObject = bpy.data.objects[objectName];
+            if (nowObject):
+                self.matrix = nowObject.matrix_local;
 
         if len(uModel.bones) > 0 or len(uModel.morphs) > 0:
             self.type = "AnimatedModel"
@@ -94,9 +106,12 @@ class UrhoScene:
         self.modelsList = []
         # List of all files
         self.files = {}
+        # Node Tree
+        self.nodeTrees = None;
 
     # name must be unique in its type
-    def AddFile(self, pathType, name, fileUrhoPath):
+    def AddFile(self, pathType, name, fileUrhoPath, tNodes):
+        self.nodeTrees = tNodes;
         if not name:
             log.critical("Name null type:{:s} path:{:s}".format(pathType, fileUrhoPath) )
             return False
@@ -120,6 +135,14 @@ class UrhoScene:
             uSceneModel.Load(uExportData, uModel, objectName)
             self.modelsList.append(uSceneModel)
 
+class UrhoNode:
+    def __init__(self, name, tran):
+        self.children = [];
+        return;
+    
+    def AddChild(self,node):
+        self.children.append(node);
+        
 
 #------------------------
 # Export materials
@@ -316,7 +339,7 @@ def IndividualPrefabXml(uScene, uSceneModel, sOptions):
 
 
 # Export scene and nodes
-def UrhoExportScene(context, uScene, sOptions, fOptions):
+def UrhoExportScene(context, uScene, sOptions, fOptions, tOptions):
 
     blenderScene = bpy.data.scenes[uScene.blenderSceneName]
     
@@ -439,6 +462,43 @@ def UrhoExportScene(context, uScene, sOptions, fOptions):
         a["{:d}".format(m)].set("value", uSceneModel.name)
         m += 1
 
+        objMatrix = uSceneModel.matrix;
+
+        
+        if tOptions.orientation:
+            objMatrix = tOptions.orientation.to_matrix().to_4x4() * objMatrix
+        #objMatrix = Matrix.Rotation(math.radians(-90.0), 4, 'X' ) * objMatrix
+
+        # Extract position and rotation relative to parent in parent space        
+        t = objMatrix.to_translation()
+        q = objMatrix.to_quaternion()
+        s = objMatrix.to_scale()
+                
+        # Convert position and rotation to left hand:
+        tl = Vector((t.x, t.z, t.y))
+        ql = Quaternion((q.w, q.x, q.z, q.y))
+        sl = Vector((s.x, s.z, s.y))
+
+        #===========================================================
+        #print(uSceneModel);
+        #Position
+        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+        a["{:d}".format(m)].set("name", "Position")
+        a["{:d}".format(m)].set("value", Vector3ToString(tl))
+        m += 1
+
+        #Rotation
+        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+        a["{:d}".format(m)].set("name", "Rotation")
+        a["{:d}".format(m)].set("value", Vector4ToString(ql))
+        m += 1
+
+        #Scale
+        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+        a["{:d}".format(m)].set("name", "Scale")
+        a["{:d}".format(m)].set("value", Vector3ToString(sl))
+        m += 1
+        #===========================================================
         a["{:d}".format(m)] = ET.SubElement(a[modelNode], "component")
         a["{:d}".format(m)].set("type", uSceneModel.type)
         a["{:d}".format(m)].set("id", "{:d}".format(compoID))
