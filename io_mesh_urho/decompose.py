@@ -306,6 +306,7 @@ class TAnimation:
 class TData:
     def __init__(self):
         self.objectName = None
+        self.nodeType = None;
         self.blenderObjectName = None
         # List of all the TVertex of all the geometries
         self.verticesList = []
@@ -2170,8 +2171,8 @@ def Scan(context, tDataList, errorsMem, tOptions):
     meshes = []
     for obj in objs:
         # Only meshes
-        if obj.type != 'MESH':
-            continue
+        #if obj.type != 'MESH':
+        #    continue
         
         # Only not hidden
         if obj.hide:
@@ -2195,7 +2196,7 @@ def Scan(context, tDataList, errorsMem, tOptions):
 
         noWork = False
         assert(lodName)
-        meshes.append( (obj, lodName, lodDistance) )
+        meshes.append( (obj, lodName, lodDistance, obj.type) )
 
     if tOptions.useLods and noLod:
         log.warning("No LODs found")
@@ -2218,7 +2219,7 @@ def Scan(context, tDataList, errorsMem, tOptions):
     # Decompose objects
     tData = None
     lodCurrentName = None
-    for obj, lodName, lodDistance in meshes:
+    for obj, lodName, lodDistance, nodeType in meshes:
             
         log.info("---- Decomposing {:s} ----".format(obj.name))
         
@@ -2268,6 +2269,7 @@ def Scan(context, tDataList, errorsMem, tOptions):
         if not tData or createNew:
             tData = TData()
             tData.objectName = lodName
+            tData.nodeType = nodeType;
             if not tOptions.mergeObjects:
                 tData.blenderObjectName = obj.name
             tDataList.append(tData)
@@ -2302,7 +2304,7 @@ def Scan(context, tDataList, errorsMem, tOptions):
                 log.warning("Object {:s} has no armature".format(obj.name) )
 
         # Decompose geometries
-        if tOptions.doGeometries:
+        if tOptions.doGeometries and nodeType == 'MESH':
             savedValue = SetRestPosePosition(context, armatureObj)
             DecomposeMesh(scene, obj, tData, tOptions, errorsMem)
             RestorePosePosition(armatureObj, savedValue)

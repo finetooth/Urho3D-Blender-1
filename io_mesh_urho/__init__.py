@@ -1318,9 +1318,6 @@ def ExecuteUrhoExport(context):
 
     # Decompose
     if DEBUG: ttt = time.time() #!TIME
-    tNodes = ScanNodes(context, tDataList, settings.errorsMem, tOptions);
-    #TPrintNodes(tNodes, "");
-    #return;
     Scan(context, tDataList, settings.errorsMem, tOptions)
     
     if DEBUG: print("[TIME] Decompose in {:.4f} sec".format(time.time() - ttt) ) #!TIME
@@ -1347,7 +1344,7 @@ def ExecuteUrhoExport(context):
         if DEBUG: print("[TIME] Export in {:.4f} sec".format(time.time() - ttt) ) #!TIME
         if DEBUG: ttt = time.time() #!TIME
 
-        uScene.Load(uExportData, tData.blenderObjectName, tNodes)
+        uScene.Load(uExportData, tData.blenderObjectName)
 
         for uModel in uExportData.models:
             if uModel.geometries:

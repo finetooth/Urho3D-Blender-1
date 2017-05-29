@@ -358,6 +358,8 @@ class UrhoModel:
     def __init__(self):
         # Model name
         self.name = None
+        # Node Type
+        self.nodeType = None;
         # List of UrhoVertexBuffer
         self.vertexBuffers = []
         # List of UrhoIndexBuffer
@@ -813,6 +815,7 @@ def UrhoExport(tData, uExportOptions, uExportData, errorsMem):
         BONES_PER_VERTEX = uExportOptions.bonesPerVertex
 
     uModel = UrhoModel()
+    uModel.nodeType = tData.nodeType;
     uModel.name = tData.objectName
     uExportData.models.append(uModel)    
     

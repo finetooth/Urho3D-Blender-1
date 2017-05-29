@@ -59,6 +59,8 @@ class UrhoSceneModel:
     def __init__(self):
         # Model name
         self.name = None
+        # Node Type
+        self.nodeType = None;
         # Blender object name
         self.objectName = None
         # Parent Blender object name
@@ -74,13 +76,16 @@ class UrhoSceneModel:
 
     def Load(self, uExportData, uModel, objectName):
         self.name = uModel.name
-
+        self.nodeType = uModel.nodeType;
         self.blenderObjectName = objectName
         if objectName:
             parentObject = bpy.data.objects[objectName].parent
-            if parentObject and parentObject.type == 'MESH':
-                self.parentObjectName = parentObject.name
+            #if parentObject and parentObject.type == 'MESH':
+            #   self.parentObjectName = parentObject.name
 
+            if parentObject:
+               self.parentObjectName = parentObject.name
+            
             nowObject = bpy.data.objects[objectName];
             if (nowObject):
                 self.matrix = nowObject.matrix_local;
@@ -110,8 +115,7 @@ class UrhoScene:
         self.nodeTrees = None;
 
     # name must be unique in its type
-    def AddFile(self, pathType, name, fileUrhoPath, tNodes):
-        self.nodeTrees = tNodes;
+    def AddFile(self, pathType, name, fileUrhoPath):
         if not name:
             log.critical("Name null type:{:s} path:{:s}".format(pathType, fileUrhoPath) )
             return False
@@ -372,14 +376,16 @@ def UrhoExportScene(context, uScene, sOptions, fOptions, tOptions):
         a["{:d}".format(m+1)].set("type", "DebugRenderer")
         a["{:d}".format(m+1)].set("id", "2")
 
-        a["{:d}".format(m+2)] = ET.SubElement(sceneRoot, "component")
-        a["{:d}".format(m+2)].set("type", "Light")
-        a["{:d}".format(m+2)].set("id", "3")
+        #a["{:d}".format(m+2)] = ET.SubElement(sceneRoot, "component")
+        #a["{:d}".format(m+2)].set("type", "Light")
+        #a["{:d}".format(m+2)].set("id", "3")
 
-        a["{:d}".format(m+3)] = ET.SubElement(a["{:d}".format(m+2)], "attribute")
-        a["{:d}".format(m+3)].set("name", "Light Type")
-        a["{:d}".format(m+3)].set("value", "Directional")
-        m += 4
+        #close
+        #a["{:d}".format(m+3)] = ET.SubElement(a["{:d}".format(m+2)], "attribute")
+        #a["{:d}".format(m+3)].set("name", "Light Type")
+        #a["{:d}".format(m+3)].set("value", "Directional")
+        #m += 4
+        m += 3;
 
         if not sOptions.noPhysics:
             a["{:d}".format(m)] = ET.SubElement(sceneRoot, "component")
@@ -442,28 +448,58 @@ def UrhoExportScene(context, uScene, sOptions, fOptions, tOptions):
                 file = ""
             materials += ";" + file
 
+        
         # Generate XML Content
         k += 1
         modelNode = uSceneModel.name
+        nodeType = uSceneModel.nodeType;
+        parentName = uSceneModel.parentObjectName
+
+        bpyObject = bpy.data.objects[modelNode];
+        
+        isMesh = nodeType == 'MESH';
+        isLight = nodeType == 'LAMP';
+        isCamera = nodeType == 'CAMERA';
 
         # If child node, parent to parent object instead of root
-        if uSceneModel.type == "StaticModel" and uSceneModel.parentObjectName:
+        #if uSceneModel.type == "StaticModel" and uSceneModel.parentObjectName:
+        #print(uSceneModel.name, uSceneModel.parentObjectName);
+        if parentName:
+            if (not (parentName in a)):
+                a[parentName] = ET.SubElement(root, "node")
             for usm in uScene.modelsList:
                 if usm.name == uSceneModel.parentObjectName:
-                    a[modelNode] = ET.SubElement(a[usm.name], "node") 
+                    #a[modelNode] = ET.SubElement(a[parentName], "node")
+                    if(isLight):
+                        a[modelNode] = ET.SubElement(a[parentName], "component")
+                    elif(isCamera):
+                        a[modelNode] = ET.SubElement(a[parentName], "component")
+                    else:
+                        a[modelNode] = ET.SubElement(a[parentName], "node")
                     break;
-        else: 
-            a[modelNode] = ET.SubElement(root, "node")
-
+        
+        if (not (modelNode in a)):
+            if(isLight):
+                a[modelNode] = ET.SubElement(root, "component")
+            elif(isCamera):
+                a[modelNode] = ET.SubElement(root, "component")
+            else:
+                a[modelNode] = ET.SubElement(root, "node")
+            
         a[modelNode].set("id", "{:d}".format(k))
 
+        #if (isLight or isCamera and parentName):
+            #a[parentName] = ET.SubElement(a[modelNode], "attribute")
+            #a[parentName].set("name", modelNode)
+            #a["{:d}".format(m)].set("value", uSceneModel.name)
+            #m += 1
+        #else:
         a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
         a["{:d}".format(m)].set("name", "Name")
         a["{:d}".format(m)].set("value", uSceneModel.name)
         m += 1
 
         objMatrix = uSceneModel.matrix;
-
         
         if tOptions.orientation:
             objMatrix = tOptions.orientation.to_matrix().to_4x4() * objMatrix
@@ -479,43 +515,65 @@ def UrhoExportScene(context, uScene, sOptions, fOptions, tOptions):
         ql = Quaternion((q.w, q.x, q.z, q.y))
         sl = Vector((s.x, s.z, s.y))
 
+        if (isLight):
+            a[modelNode].set("type", "Light")
+            a[modelNode].set("id", "{:d}".format(m))
+            m += 1;
+            
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+            a["{:d}".format(m)].set("name", "Light Type")
+            a["{:d}".format(m)].set("value", "Directional")
+            m += 1;
+        elif (isCamera):
+            a[modelNode].set("type", "Camera")
+            a[modelNode].set("id", "{:d}".format(m))
+            m += 1;
+            
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+            a["{:d}".format(m)].set("name", "Aspect Ratio")
+            a["{:d}".format(m)].set("value", '1.77778')
+            m += 1;
+        else:  
+            #===========================================================
+            #print(uSceneModel);
+            #Position
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+            a["{:d}".format(m)].set("name", "Position")
+            a["{:d}".format(m)].set("value", Vector3ToString(tl))
+            m += 1
+
+            #Rotation
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+            a["{:d}".format(m)].set("name", "Rotation")
+            a["{:d}".format(m)].set("value", Vector4ToString(ql))
+            m += 1
+
+            #Scale
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+            a["{:d}".format(m)].set("name", "Scale")
+            a["{:d}".format(m)].set("value", Vector3ToString(sl))
+            m += 1
+        
         #===========================================================
-        #print(uSceneModel);
-        #Position
-        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-        a["{:d}".format(m)].set("name", "Position")
-        a["{:d}".format(m)].set("value", Vector3ToString(tl))
-        m += 1
+        if (isMesh):
+            
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "component")
+            a["{:d}".format(m)].set("type", uSceneModel.type)
+            a["{:d}".format(m)].set("id", "{:d}".format(compoID))
+            m += 1
+    
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-1)], "attribute")
+            a["{:d}".format(m)].set("name", "Model")
+            a["{:d}".format(m)].set("value", "Model;" + modelFile)
+            m += 1
 
-        #Rotation
-        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-        a["{:d}".format(m)].set("name", "Rotation")
-        a["{:d}".format(m)].set("value", Vector4ToString(ql))
-        m += 1
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-2)], "attribute")
+            a["{:d}".format(m)].set("name", "Material")
+            a["{:d}".format(m)].set("value", "Material" + materials)
+            m += 1
+            compoID += 1
 
-        #Scale
-        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-        a["{:d}".format(m)].set("name", "Scale")
-        a["{:d}".format(m)].set("value", Vector3ToString(sl))
-        m += 1
-        #===========================================================
-        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "component")
-        a["{:d}".format(m)].set("type", uSceneModel.type)
-        a["{:d}".format(m)].set("id", "{:d}".format(compoID))
-        m += 1
-
-        a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-1)], "attribute")
-        a["{:d}".format(m)].set("name", "Model")
-        a["{:d}".format(m)].set("value", "Model;" + modelFile)
-        m += 1
-
-        a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-2)], "attribute")
-        a["{:d}".format(m)].set("name", "Material")
-        a["{:d}".format(m)].set("value", "Material" + materials)
-        m += 1
-        compoID += 1
-
-        if sOptions.individualPhysics:
+        if sOptions.individualPhysics and isMesh:
             #Use model's bounding box to compute CollisionShape's size and offset
             obj = bpy.data.objects[modelNode]
             physicsSettings = [sOptions.shape] #tData.physicsSettings = [sOptions.shape, obj.game.physics_type, obj.game.mass, obj.game.radius, obj.game.velocity_min, obj.game.velocity_max, obj.game.collision_group, obj.game.collision_mask, obj.game.use_ghost] **************************************
