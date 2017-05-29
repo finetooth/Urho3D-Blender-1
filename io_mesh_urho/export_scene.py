@@ -469,31 +469,13 @@ def UrhoExportScene(context, uScene, sOptions, fOptions, tOptions):
                 a[parentName] = ET.SubElement(root, "node")
             for usm in uScene.modelsList:
                 if usm.name == uSceneModel.parentObjectName:
-                    #a[modelNode] = ET.SubElement(a[parentName], "node")
-                    if(isLight):
-                        a[modelNode] = ET.SubElement(a[parentName], "component")
-                    elif(isCamera):
-                        a[modelNode] = ET.SubElement(a[parentName], "component")
-                    else:
-                        a[modelNode] = ET.SubElement(a[parentName], "node")
+                    a[modelNode] = ET.SubElement(a[parentName], "node")
                     break;
         
         if (not (modelNode in a)):
-            if(isLight):
-                a[modelNode] = ET.SubElement(root, "component")
-            elif(isCamera):
-                a[modelNode] = ET.SubElement(root, "component")
-            else:
-                a[modelNode] = ET.SubElement(root, "node")
+            a[modelNode] = ET.SubElement(root, "node")
             
         a[modelNode].set("id", "{:d}".format(k))
-
-        #if (isLight or isCamera and parentName):
-            #a[parentName] = ET.SubElement(a[modelNode], "attribute")
-            #a[parentName].set("name", modelNode)
-            #a["{:d}".format(m)].set("value", uSceneModel.name)
-            #m += 1
-        #else:
         a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
         a["{:d}".format(m)].set("name", "Name")
         a["{:d}".format(m)].set("value", uSceneModel.name)
@@ -516,43 +498,58 @@ def UrhoExportScene(context, uScene, sOptions, fOptions, tOptions):
         sl = Vector((s.x, s.z, s.y))
 
         if (isLight):
-            a[modelNode].set("type", "Light")
-            a[modelNode].set("id", "{:d}".format(m))
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "component")
+            a["{:d}".format(m)].set("type", "Light")
+            a["{:d}".format(m)].set("id", "{:d}".format(m))
             m += 1;
-            
-            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-1)], "attribute")
             a["{:d}".format(m)].set("name", "Light Type")
             a["{:d}".format(m)].set("value", "Directional")
             m += 1;
-        elif (isCamera):
-            a[modelNode].set("type", "Camera")
-            a[modelNode].set("id", "{:d}".format(m))
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-2)], "attribute")
+            a["{:d}".format(m)].set("name", "Color")
+            a["{:d}".format(m)].set("value", Vector3ToString(bpyObject.color))
             m += 1;
             
-            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-            a["{:d}".format(m)].set("name", "Aspect Ratio")
-            a["{:d}".format(m)].set("value", '1.77778')
+        elif (isCamera):
+            cameraObject = bpy.data.cameras[modelNode];
+            cameraType = cameraObject.type;
+            
+            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "component")
+            a["{:d}".format(m)].set("type", "Camera")
+            a["{:d}".format(m)].set("id", "{:d}".format(m))
             m += 1;
-        else:  
-            #===========================================================
-            #print(uSceneModel);
-            #Position
-            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-            a["{:d}".format(m)].set("name", "Position")
-            a["{:d}".format(m)].set("value", Vector3ToString(tl))
-            m += 1
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-1)], "attribute")
+            a["{:d}".format(m)].set("name", "Near Clip")
+            a["{:d}".format(m)].set("value", "{:f}".format(cameraObject.clip_start))
+            m += 1;
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-2)], "attribute")
+            a["{:d}".format(m)].set("name", "Far Clip")
+            a["{:d}".format(m)].set("value", "{:f}".format(cameraObject.clip_end))
+            m += 1;
+            a["{:d}".format(m)] = ET.SubElement(a["{:d}".format(m-3)], "attribute")
+            a["{:d}".format(m)].set("name", "Aspect Ratio")
+            a["{:d}".format(m)].set("value", '1')
+            m += 1;
+        
+        #===========================================================
+        #Position
+        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+        a["{:d}".format(m)].set("name", "Position")
+        a["{:d}".format(m)].set("value", Vector3ToString(tl))
+        m += 1
 
-            #Rotation
-            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-            a["{:d}".format(m)].set("name", "Rotation")
-            a["{:d}".format(m)].set("value", Vector4ToString(ql))
-            m += 1
+        #Rotation
+        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+        a["{:d}".format(m)].set("name", "Rotation")
+        a["{:d}".format(m)].set("value", Vector4ToString(ql))
+        m += 1
 
-            #Scale
-            a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
-            a["{:d}".format(m)].set("name", "Scale")
-            a["{:d}".format(m)].set("value", Vector3ToString(sl))
-            m += 1
+        #Scale
+        a["{:d}".format(m)] = ET.SubElement(a[modelNode], "attribute")
+        a["{:d}".format(m)].set("name", "Scale")
+        a["{:d}".format(m)].set("value", Vector3ToString(sl))
+        m += 1
         
         #===========================================================
         if (isMesh):
